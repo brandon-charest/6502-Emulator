@@ -2,7 +2,11 @@
 
 Bus::Bus() 
 {
+  // Make sure everything is clear
   Bus::clear();
+
+  // Connect CPU to bus
+  cpu.ConnectBus(this);
 }
 
 Bus::~Bus() {}

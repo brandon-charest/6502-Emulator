@@ -12,7 +12,7 @@ public:
     Bus();
     ~Bus();
 
-    // Devices connected to buss
+    // Devices connected to bus
     Chip6502 cpu;
     std::array<uint8_t, MAX_MEM> ram;
 
