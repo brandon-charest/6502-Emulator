@@ -45,6 +45,7 @@ void Chip6502::write(uint16_t addr, uint8_t data)
     bus->write(addr, data);
 }
 
+// not clock cycle accurate
 void Chip6502::clock() 
 {
     if(cycles == 0)
@@ -57,9 +58,20 @@ void Chip6502::clock()
         uint8_t additional_cycle1 = (this->*lookup[opcode].operate)();
         uint8_t additional_cycle2 = (this->*lookup[opcode].addrmode)();
 
+        // check if both op function and addr mode function require addition cycles
+        // update cycles 
         cycles += (additional_cycle1 & additional_cycle2);
     }
     cycles--;
+}
+
+uint8_t Chip6502::fetch()
+{
+    if(!(lookup[opcode].addrmode == &Chip6502::IMP))
+    {
+        fetched = read(addr_abs);
+    }
+    return fetched;
 }
 
 void Chip6502::reset() 
@@ -77,67 +89,6 @@ void Chip6502::nmi()
     
 }
 
-uint8_t Chip6502::IMP()
-{
-    fetched = a; // Accumulator
-    return 0;
-}
-
-uint8_t Chip6502::IMM()
-{
-    addr_abs = pc++;
-    return 0;
-}
-
-uint8_t Chip6502::ZP0() 
-{
-    
-}
-
-uint8_t Chip6502::ZPX() 
-{
-    
-}
-
-uint8_t Chip6502::ZPY() 
-{
-    
-}
-
-uint8_t Chip6502::REL() 
-{
-    
-}
-
-uint8_t Chip6502::ABS() 
-{
-    
-}
-
-uint8_t Chip6502::ABX() 
-{
-    
-}
-
-uint8_t Chip6502::ABY() 
-{
-    
-}
-
-uint8_t Chip6502::IND() 
-{
-    
-}
-
-uint8_t Chip6502::IZX() 
-{
-    
-}
-
-uint8_t Chip6502::IZY() 
-{
-    
-}
 
 
 

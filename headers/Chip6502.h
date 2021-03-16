@@ -58,6 +58,7 @@ private:
 
 private:
     // Addressing Modes *****************************************
+
     uint8_t IMP();
     uint8_t IMM();
     uint8_t ZP0();
@@ -75,6 +76,7 @@ private:
     // Opcodes****************************************************
     // http://archive.6502.org/datasheets/rockwell_r650x_r651x.pdf
     // Instruction Set
+    
     uint8_t ADC(); // "Add Memory to Accumulator with Carry"
     uint8_t AND(); // "'AND' Memory with Accumulator"
     uint8_t ASL(); // "Shit Left One Bit (Memory or Accumulator)"
@@ -147,5 +149,7 @@ private:
 
     uint8_t XXX(); // Illegal OpCode
 };
+
+
 
 
