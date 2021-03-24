@@ -76,17 +76,70 @@ uint8_t Chip6502::fetch()
 
 void Chip6502::reset() 
 {
-    
+    a = 0;
+    x = 0;
+    y = 0;
+    sp = 0xFD;
+    status = 0x00 | U;
+
+    // Address around 0x00 is saved for user programmable states
+    addr_abs = 0xFFFC;
+    uint16_t lo = read(addr_abs + 0);
+    uint16_t hi = read(addr_abs + 1);
+
+    pc = (hi << 8) | lo;
+    addr_abs = 0x0000;
+    addr_rel = 0x0000;
+    fetched = 0x00;
+
+    cycles = 8;
 }
 
 void Chip6502::irq() 
 {
-    
+    if(GetFlag(I) == 0)
+    {
+        write(0x0100 + sp, (pc >> 8) & 0x00FF);
+        sp--;
+        write(0x0100 + sp, pc & 0x00FF);
+        sp--;
+
+        setFlag(B, 0);
+        setFlag(U, 1);
+        setFlag(I, 1);
+        write(0x0100 + sp, status);
+        sp--;
+
+
+        addr_abs = 0xFFFE;
+        uint16_t lo = read(addr_abs + 0);
+        uint16_t hi = read(addr_abs + 1);
+        pc = (hi << 8) | lo;
+
+        cycles = 7;
+    }
 }
 
 void Chip6502::nmi() 
 {
-    
+    write(0x0100 + sp, (pc >> 8) & 0x00FF);
+    sp--;
+    write(0x0100 + sp, pc & 0x00FF);
+    sp--;
+
+    setFlag(B, 0);
+    setFlag(U, 1);
+    setFlag(I, 1);
+    write(0x0100 + sp, status);
+    sp--;
+
+
+    addr_abs = 0xFFFA;
+    uint16_t lo = read(addr_abs + 0);
+    uint16_t hi = read(addr_abs + 1);
+    pc = (hi << 8) | lo;
+
+    cycles = 8;
 }
 
 
