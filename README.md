@@ -7,4 +7,4 @@ Link for 6502 assembly
 Everything you might need to know about the NES.
 http://wiki.nesdev.com/w/index.php/Nesdev
 
-This is for educational purposes only as I explorer the 6502 architecture.
+This is for educational purposes only as I explore the 6502 architecture.
