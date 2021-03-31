@@ -1,12 +1,10 @@
 #pragma once
 #include <string>
 #include <vector>
-#include "StatusFlags.h"
-#include "Registers.h"
+#include <map>
 // Forward declaration of Bus class to prevent
 // circular inclusions
 class Bus;
-enum StatusFlags;
 
 class Chip6502 
 {
@@ -21,6 +19,10 @@ public:
     void reset();
     void irq(); // Interrupt request signal
     void nmi(); // Non maskable Interrupt request signal
+    bool complete();
+    // Disassembler to help debug
+    // Turns address ranges into readable code
+    std::map<uint16_t, std::string> disassemble(uint16_t nStart, uint16_t nStop);
 
     uint8_t fetch();
     uint8_t fetched = 0x00;
@@ -29,6 +31,43 @@ public:
     uint16_t addr_rel = 0x0000;
     uint8_t opcode = 0x00; // current opcode
     uint8_t cycles = 0; // Cycles left in instruction
+
+
+    uint8_t status = 0x00;  // Status Register
+    uint8_t pc = 0x00;      // Program Counter
+    uint8_t sp = 0x00;      // Stack Pointer
+    uint8_t a = 0x00;       // Accumulator
+    uint8_t x = 0x00;       // X Register
+    uint8_t y = 0x00;       // Y Register
+    
+    /* Flag register or processor status (P)
+
+    see below for more info
+    https://wiki.nesdev.com/w/index.php/Status_flags
+
+    7  bit  0
+    ---- ----
+    NVss DIZC
+    |||| ||||
+    |||| |||+- Carry
+    |||| ||+-- Zero
+    |||| |+--- Interrupt Disable
+    |||| +---- Decimal
+    ||++------ No CPU effect, see: the B flag
+    |+-------- Overflow
+    +--------- Negative
+    */
+    enum StatusFlags
+    {
+        C = (1 << 0), 
+        Z = (1 << 1),
+        I = (1 << 2),
+        D = (1 << 3),
+        B = (1 << 4),
+        U = (1 << 5),
+        V = (1 << 6),
+        N = (1 << 7),
+    };
 
 private:
     Bus *bus = nullptr;
@@ -54,7 +93,7 @@ private:
 		uint8_t cycles = 0;
 	};
 
-	static const std::vector<INSTRUCTION> lookup;
+	std::vector<INSTRUCTION> lookup;
 
 private:
     // Addressing Modes *****************************************
@@ -149,6 +188,7 @@ private:
 
     uint8_t XXX(); // Illegal OpCode
 };
+
 
 
 
