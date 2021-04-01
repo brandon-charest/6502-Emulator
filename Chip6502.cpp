@@ -57,16 +57,20 @@ void Chip6502::clock()
     if(cycles == 0)
     {
         opcode = read(pc);
+        SetFlag(U, true);
+
         pc++;
 
         // Starting Cycles
         cycles = lookup[opcode].cycles;
-        uint8_t additional_cycle1 = (this->*lookup[opcode].operate)();
-        uint8_t additional_cycle2 = (this->*lookup[opcode].addrmode)();
+        uint8_t additional_cycle1 = (this->*lookup[opcode].addrmode)();
+        uint8_t additional_cycle2 = (this->*lookup[opcode].operate)();
 
         // check if both op function and addr mode function require addition cycles
         // update cycles 
         cycles += (additional_cycle1 & additional_cycle2);
+        SetFlag(U, true);
+
     }
     cycles--;
 }
@@ -105,15 +109,15 @@ void Chip6502::irq()
 {
     if(GetFlag(I) == 0)
     {
-        write(0x0100 + sp, (pc >> 8) & 0x00FF);
+        write(sp_mem_offset, (pc >> 8) & 0x00FF);
         sp--;
-        write(0x0100 + sp, pc & 0x00FF);
+        write(sp_mem_offset, pc & 0x00FF);
         sp--;
 
-        setFlag(B, 0);
-        setFlag(U, 1);
-        setFlag(I, 1);
-        write(0x0100 + sp, status);
+        SetFlag(B, 0);
+        SetFlag(U, 1);
+        SetFlag(I, 1);
+        write(sp_mem_offset, status);
         sp--;
 
 
@@ -128,15 +132,15 @@ void Chip6502::irq()
 
 void Chip6502::nmi() 
 {
-    write(0x0100 + sp, (pc >> 8) & 0x00FF);
+    write(sp_mem_offset, (pc >> 8) & 0x00FF);
     sp--;
-    write(0x0100 + sp, pc & 0x00FF);
+    write(sp_mem_offset, pc & 0x00FF);
     sp--;
 
-    setFlag(B, 0);
-    setFlag(U, 1);
-    setFlag(I, 1);
-    write(0x0100 + sp, status);
+    SetFlag(B, 0);
+    SetFlag(U, 1);
+    SetFlag(I, 1);
+    write(sp_mem_offset, status);
     sp--;
 
 
@@ -155,12 +159,16 @@ uint8_t Chip6502::GetFlag(StatusFlags f)
 }
 
 // Sets or clears a specific bit of the status register
-void Chip6502::setFlag(StatusFlags f, bool v)
+void Chip6502::SetFlag(StatusFlags f, bool v)
 {
 	if (v)
-		status |= f;
+	{
+        status |= f;
+    }	
 	else
+    {
 		status &= ~f;
+    }
 }
 
 
@@ -446,16 +454,16 @@ uint8_t Chip6502::ADC()
     uint16_t val = (uint16_t)a + (uint16_t)fetched + (uint16_t)GetFlag(C);
 
     // carry if only the my significant bit in high byte is 1
-    setFlag(C, val > 255);
+    SetFlag(C, val > 255);
 
     // if val == 0 set zero flag
-    setFlag(Z, (val & 0x00FF) == 0);
+    SetFlag(Z, (val & 0x00FF) == 0);
 
     // V = ~(a ^ m) & (a ^ r) plus most significant bit of low byte
-    setFlag(V, (~((uint16_t)a ^ (uint16_t)fetched) & ((uint16_t)a ^ (uint16_t)val)) & 0x0080);
+    SetFlag(V, (~((uint16_t)a ^ (uint16_t)fetched) & ((uint16_t)a ^ (uint16_t)val)) & 0x0080);
     
     // check most significant bit for negative flag
-    setFlag(N, (val & 0x80));
+    SetFlag(N, (val & 0x80));
 
     // load result into accumulator
     a = val & 0x00FF;
@@ -475,9 +483,9 @@ uint8_t Chip6502::AND()
     fetch();
     a = a & fetched;
     // if all bits 0
-    setFlag(Z, a == 0x00);
+    SetFlag(Z, a == 0x00);
     // if most significant bit of low byte == 1
-    setFlag(N, a & 0x80);
+    SetFlag(N, a & 0x80);
     return 1;
 }
 
@@ -488,9 +496,9 @@ uint8_t Chip6502::ASL()
 {
     fetch();
     uint16_t val = (uint16_t)fetched << 1;
-    setFlag(C, (val & 0xFF00) > 0);
-    setFlag(Z, (val & 0x00FF) == 0x00);
-    setFlag(N, val & 0x80);
+    SetFlag(C, (val & 0xFF00) > 0);
+    SetFlag(Z, (val & 0x00FF) == 0x00);
+    SetFlag(N, val & 0x80);
 
     uint8_t temp = val & 0x00FF;
 
@@ -570,9 +578,9 @@ uint8_t Chip6502::BIT()
 {
     fetch();
     uint8_t temp = a & fetched;
-    setFlag(Z, (temp & 0x00FF) == 0x0000);
-    setFlag(V, fetched & (1 << 7));
-	setFlag(N, fetched & (1 << 6));
+    SetFlag(Z, (temp & 0x00FF) == 0x0000);
+    SetFlag(V, fetched & (1 << 7));
+	SetFlag(N, fetched & (1 << 6));
 	return 0;
 }
 
@@ -641,16 +649,16 @@ uint8_t Chip6502::BRK()
 {
    pc++;
 
-    setFlag(I, 1);
-    write(0x0100 + sp, (pc >> 8) & 0x00FF);
+    SetFlag(I, 1);
+    write(sp_mem_offset, (pc >> 8) & 0x00FF);
     sp--;
-    write(0x0100 + sp, pc & 0x00FF);
+    write(sp_mem_offset, pc & 0x00FF);
     sp--;
 
-    setFlag(B, 1);
-    write(0x0100 + sp, status);
+    SetFlag(B, 1);
+    write(sp_mem_offset, status);
     sp--;
-    setFlag(B, 0);
+    SetFlag(B, 0);
 
     pc = (uint16_t)read(0xFFFE) | ((uint16_t)read(0xFFFF) << 8);
     return 0;
@@ -701,7 +709,7 @@ uint8_t Chip6502::BVS()
 // Flags Out: none
 uint8_t Chip6502::CLC() 
 {
-    setFlag(C, false);
+    SetFlag(C, false);
     return 0;
 }
 
@@ -710,7 +718,7 @@ uint8_t Chip6502::CLC()
 // Flags Out: none
 uint8_t Chip6502::CLD() 
 {
-    setFlag(D, false);
+    SetFlag(D, false);
     return 0;
 }
 
@@ -719,7 +727,7 @@ uint8_t Chip6502::CLD()
 // Flags Out: none
 uint8_t Chip6502::CLI() 
 {
-    setFlag(I, false);
+    SetFlag(I, false);
     return 0;
 }
 
@@ -728,7 +736,7 @@ uint8_t Chip6502::CLI()
 // Flags Out: none
 uint8_t Chip6502::CLV() 
 {
-    setFlag(V, false);
+    SetFlag(V, false);
     return 0;
 }
 
@@ -739,9 +747,9 @@ uint8_t Chip6502::CMP()
 {
     fetch();
     uint16_t temp = (uint16_t)a - (uint16_t)fetched;
-    setFlag(C, a >= fetched);
-    setFlag(Z, (temp & 0x00FF) == 0x0000);
-	setFlag(N, temp & 0x0080);
+    SetFlag(C, a >= fetched);
+    SetFlag(Z, (temp & 0x00FF) == 0x0000);
+	SetFlag(N, temp & 0x0080);
 	return 0;
 }
 
@@ -752,9 +760,9 @@ uint8_t Chip6502::CPX()
 {
     fetch();
     uint16_t temp = (uint16_t)x - (uint16_t)fetched;
-    setFlag(C, y >= fetched);
-    setFlag(Z, (temp & 0x00FF) == 0x0000);
-	setFlag(N, temp & 0x0080);
+    SetFlag(C, y >= fetched);
+    SetFlag(Z, (temp & 0x00FF) == 0x0000);
+	SetFlag(N, temp & 0x0080);
 	return 0;
 }
 
@@ -765,9 +773,9 @@ uint8_t Chip6502::CPY()
 {
     fetch();
     uint16_t temp = (uint16_t)y - (uint16_t)fetched;
-    setFlag(C, y >= fetched);
-    setFlag(Z, (temp & 0x00FF) == 0x0000);
-	setFlag(N, temp & 0x0080);
+    SetFlag(C, y >= fetched);
+    SetFlag(Z, (temp & 0x00FF) == 0x0000);
+	SetFlag(N, temp & 0x0080);
 	return 0;
 }
 
@@ -779,8 +787,8 @@ uint8_t Chip6502::DEC()
     fetch();
     uint8_t temp = fetched - 1;
     write(addr_abs, temp & 0x00FF);
-    setFlag(Z, (temp & 0x00FF) == 0x0000);
-	setFlag(N, temp & 0x0080);
+    SetFlag(Z, (temp & 0x00FF) == 0x0000);
+	SetFlag(N, temp & 0x0080);
 	return 0;
 }
 
@@ -790,8 +798,8 @@ uint8_t Chip6502::DEC()
 uint8_t Chip6502::DEX() 
 {
      x--;
-    setFlag(Z, x == 0x00);
-    setFlag(N, x & 0x80);
+    SetFlag(Z, x == 0x00);
+    SetFlag(N, x & 0x80);
     return 0;
 }
 
@@ -801,8 +809,8 @@ uint8_t Chip6502::DEX()
 uint8_t Chip6502::DEY() 
 {
     y--;
-    setFlag(Z, y == 0x00);
-    setFlag(N, y & 0x80);
+    SetFlag(Z, y == 0x00);
+    SetFlag(N, y & 0x80);
     return 0;
 }
 
@@ -813,8 +821,8 @@ uint8_t Chip6502::EOR()
 {
     fetch();
     a = a ^ fetched;
-    setFlag(Z, a = 0x00);
-    setFlag(N, a & 0x80);
+    SetFlag(Z, a = 0x00);
+    SetFlag(N, a & 0x80);
     return 1;
 }
 
@@ -826,8 +834,8 @@ uint8_t Chip6502::INC()
     fetch();
     uint8_t temp = fetched + 1;
     write(addr_abs, temp & 0x00FF);
-    setFlag(Z, (temp & 0x00FF) == 0x0000);
-	setFlag(N, temp & 0x0080);
+    SetFlag(Z, (temp & 0x00FF) == 0x0000);
+	SetFlag(N, temp & 0x0080);
 	return 0;
 }
 
@@ -837,8 +845,8 @@ uint8_t Chip6502::INC()
 uint8_t Chip6502::INX() 
 {
     x++;
-    setFlag(Z, x == 0x00);
-    setFlag(N, x & 0x80);
+    SetFlag(Z, x == 0x00);
+    SetFlag(N, x & 0x80);
     return 0;
 }
 
@@ -848,8 +856,8 @@ uint8_t Chip6502::INX()
 uint8_t Chip6502::INY() 
 {
     y++;
-    setFlag(Z, y == 0x00);
-    setFlag(N, y & 0x80);
+    SetFlag(Z, y == 0x00);
+    SetFlag(N, y & 0x80);
     return 0;
 }
 
@@ -868,9 +876,9 @@ uint8_t Chip6502::JMP()
 uint8_t Chip6502::JSR() 
 {
     pc--;
-    write(0x0100 + sp, (pc >> 8) & 0x00FF);
+    write(sp_mem_offset, (pc >> 8) & 0x00FF);
     sp--;
-    write(0x0100 + sp, pc & 0x00FF);
+    write(sp_mem_offset, pc & 0x00FF);
     sp--;
     pc = addr_abs;
     return 0;
@@ -883,8 +891,8 @@ uint8_t Chip6502::LDA()
 {
     fetch();
     a = fetched;
-    setFlag(Z, a = 0x00);
-    setFlag(N, a & 0x80);
+    SetFlag(Z, a == 0x00);
+    SetFlag(N, a & 0x80);
     return 1;
 }
 
@@ -895,8 +903,8 @@ uint8_t Chip6502::LDX()
 {
     fetch();
     x = fetched;
-    setFlag(Z, x = 0x00);
-    setFlag(N, x & 0x80);
+    SetFlag(Z, x == 0x00);
+    SetFlag(N, x & 0x80);
     return 1;
 }
 
@@ -907,8 +915,8 @@ uint8_t Chip6502::LDY()
 {
     fetch();
     y = fetched;
-    setFlag(Z, y = 0x00);
-    setFlag(N, y & 0x80);
+    SetFlag(Z, y == 0x00);
+    SetFlag(N, y & 0x80);
     return 1;
 }
 
@@ -920,9 +928,9 @@ uint8_t Chip6502::LSR()
     fetch();
     uint8_t temp = fetched >> 1;
 
-    setFlag(C, fetched & 0x0001);
-    setFlag(Z, (temp & 0x00FF) == 0x0000);
-    setFlag(N, temp & 0x0080);
+    SetFlag(C, fetched & 0x0001);
+    SetFlag(Z, (temp & 0x00FF) == 0x0000);
+    SetFlag(N, temp & 0x0080);
 
     if(lookup[opcode].addrmode == &Chip6502::IMP)
     {
@@ -960,8 +968,8 @@ uint8_t Chip6502::ORA()
 {
     fetch();
     a = a | fetched;
-    setFlag(Z, a = 0x00);
-    setFlag(N, a & 0x80);
+    SetFlag(Z, a = 0x00);
+    SetFlag(N, a & 0x80);
     return 1;
 }
 
@@ -970,7 +978,7 @@ uint8_t Chip6502::ORA()
 // Flags Out: none
 uint8_t Chip6502::PHA() 
 {
-    write(0x0100 + sp, a);
+    write(sp_mem_offset, a);
     sp--;
     return 0;
 }
@@ -980,9 +988,9 @@ uint8_t Chip6502::PHA()
 // Flags Out: B, U
 uint8_t Chip6502::PHP() 
 {
-    write(0x0100 + sp, status | B | U);
-    setFlag(B, 0);
-    setFlag(U, 0);
+    write(sp_mem_offset, status | B | U);
+    SetFlag(B, 0);
+    SetFlag(U, 0);
     sp--;
     return 0;
 }
@@ -993,9 +1001,9 @@ uint8_t Chip6502::PHP()
 uint8_t Chip6502::PLA() 
 {
     sp++;
-    a = read(0x0100 + sp);
-    setFlag(Z, a == 0x00);
-    setFlag(N, a & 0x80);
+    a = read(sp_mem_offset);
+    SetFlag(Z, a == 0x00);
+    SetFlag(N, a & 0x80);
     return 0;
 }
 
@@ -1005,8 +1013,8 @@ uint8_t Chip6502::PLA()
 uint8_t Chip6502::PLP() 
 {
     sp++;
-    status = read(0x0100 + sp);
-    setFlag(U, 1);
+    status = read(sp_mem_offset);
+    SetFlag(U, 1);
     return 0;
 }
 
@@ -1018,9 +1026,9 @@ uint8_t Chip6502::ROL()
     fetch();
 	uint16_t temp = (uint16_t)(fetched << 1) | GetFlag(C);
 
-	setFlag(C, temp & 0xFF00);
-	setFlag(Z, (temp & 0x00FF) == 0x0000);
-	setFlag(N, temp & 0x0080);
+	SetFlag(C, temp & 0xFF00);
+	SetFlag(Z, (temp & 0x00FF) == 0x0000);
+	SetFlag(N, temp & 0x0080);
 
 	if (lookup[opcode].addrmode == &Chip6502::IMP)
 	{	
@@ -1041,9 +1049,9 @@ uint8_t Chip6502::ROR()
     fetch();
 	uint16_t temp = (uint16_t)(fetched << 7) | (fetched >> 1);
 
-	setFlag(C, temp & 0x01);
-	setFlag(Z, (temp & 0x00FF) == 0x0000);
-	setFlag(N, temp & 0x0080);
+	SetFlag(C, temp & 0x01);
+	SetFlag(Z, (temp & 0x00FF) == 0x0000);
+	SetFlag(N, temp & 0x0080);
 
 	if (lookup[opcode].addrmode == &Chip6502::IMP)
 	{	
@@ -1068,7 +1076,7 @@ uint8_t Chip6502::RTI()
     status &= ~U;
 
     sp++;
-    uint16_t mem = (uint16_t)read(0x0100 + sp);
+    uint16_t mem = (uint16_t)read(sp_mem_offset);
     pc = mem;
     sp++;
     pc |= mem << 8;
@@ -1081,10 +1089,10 @@ uint8_t Chip6502::RTI()
 uint8_t Chip6502::RTS() 
 {
     sp++;
-	pc = (uint16_t)read(0x0100 + sp);
+	pc = (uint16_t)read(sp_mem_offset);
 
 	sp++;
-	pc |= (uint16_t)read(0x0100 + sp) << 8;
+	pc |= (uint16_t)read(sp_mem_offset) << 8;
 	
 	pc++;
 	return 0;
@@ -1106,10 +1114,10 @@ uint8_t Chip6502::SBC()
 
     // basically same as ADC
     uint16_t val = (uint16_t)a + temp + (uint16_t)GetFlag(C);    
-    setFlag(C, val & 255);
-    setFlag(Z, (val & 0x00FF) == 0);
-    setFlag(V, (val ^ (uint16_t)a) & (val ^ temp) & 0x0080);
-    setFlag(N, (val & 0x80));
+    SetFlag(C, val & 255);
+    SetFlag(Z, (val & 0x00FF) == 0);
+    SetFlag(V, (val ^ (uint16_t)a) & (val ^ temp) & 0x0080);
+    SetFlag(N, (val & 0x80));
     a = val & 0x00FF;
 
     // SBC could require addition clock cycles
@@ -1122,7 +1130,7 @@ uint8_t Chip6502::SBC()
 // Flags Out: none
 uint8_t Chip6502::SEC() 
 {
-    setFlag(C, true);
+    SetFlag(C, true);
     return 0;
 }
 
@@ -1131,7 +1139,7 @@ uint8_t Chip6502::SEC()
 // Flags Out: none
 uint8_t Chip6502::SED() 
 {
-    setFlag(D, true);
+    SetFlag(D, true);
     return 0;
 }
 
@@ -1140,7 +1148,7 @@ uint8_t Chip6502::SED()
 // Flags Out: none
 uint8_t Chip6502::SEI() 
 {
-    setFlag(I, true);
+    SetFlag(I, true);
     return 0;
 }
 
@@ -1177,8 +1185,8 @@ uint8_t Chip6502::STY()
 uint8_t Chip6502::TAX() 
 {
     x = a;
-    setFlag(Z, x == 0x00);
-    setFlag(N, x & 0x80);
+    SetFlag(Z, x == 0x00);
+    SetFlag(N, x & 0x80);
     return 0;
 }
 
@@ -1188,8 +1196,8 @@ uint8_t Chip6502::TAX()
 uint8_t Chip6502::TAY() 
 {
     y = a;
-    setFlag(Z, y == 0x00);
-    setFlag(N, y & 0x80);
+    SetFlag(Z, y == 0x00);
+    SetFlag(N, y & 0x80);
     return 0;
 }
 
@@ -1199,8 +1207,8 @@ uint8_t Chip6502::TAY()
 uint8_t Chip6502::TSX() 
 {
     x = sp;
-    setFlag(Z, x == 0x00);
-    setFlag(N, x & 0x80);
+    SetFlag(Z, x == 0x00);
+    SetFlag(N, x & 0x80);
     return 0;
 }
 
@@ -1210,8 +1218,8 @@ uint8_t Chip6502::TSX()
 uint8_t Chip6502::TXA() 
 {
     a = x;
-    setFlag(Z, a == 0x00);
-    setFlag(N, a & 0x80);
+    SetFlag(Z, a == 0x00);
+    SetFlag(N, a & 0x80);
     return 0;
 }
 
@@ -1230,8 +1238,8 @@ uint8_t Chip6502::TXS()
 uint8_t Chip6502::TYA() 
 {
     a = y;
-    setFlag(Z, a == 0x00);
-    setFlag(N, a & 0x80);
+    SetFlag(Z, a == 0x00);
+    SetFlag(N, a & 0x80);
     return 0;
 }
 

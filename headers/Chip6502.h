@@ -20,28 +20,20 @@ public:
     void irq(); // Interrupt request signal
     void nmi(); // Non maskable Interrupt request signal
     bool complete();
+    
     // Disassembler to help debug
     // Turns address ranges into readable code
     std::map<uint16_t, std::string> disassemble(uint16_t nStart, uint16_t nStop);
 
-    uint8_t fetch();
-    uint8_t fetched = 0x00;
-
-    uint16_t addr_abs = 0x0000;
-    uint16_t addr_rel = 0x0000;
-    uint8_t opcode = 0x00; // current opcode
-    uint8_t cycles = 0; // Cycles left in instruction
-
-
     uint8_t status = 0x00;  // Status Register
-    uint8_t pc = 0x00;      // Program Counter
+    uint16_t pc = 0x0000;   // Program Counter
     uint8_t sp = 0x00;      // Stack Pointer
     uint8_t a = 0x00;       // Accumulator
     uint8_t x = 0x00;       // X Register
     uint8_t y = 0x00;       // Y Register
+
     
     /* Flag register or processor status (P)
-
     see below for more info
     https://wiki.nesdev.com/w/index.php/Status_flags
 
@@ -76,8 +68,17 @@ private:
 
     // functions to access status register
     uint8_t GetFlag(StatusFlags flag);
-    void setFlag(StatusFlags flag, bool val);
+    void SetFlag(StatusFlags flag, bool val);
 
+    uint8_t fetch();
+    uint8_t fetched = 0x00;
+
+    uint16_t addr_abs = 0x0000;
+    uint16_t addr_rel = 0x0000;     
+    uint8_t opcode = 0x00;          // current opcode
+    uint8_t cycles = 0;             // Cycles left in instruction
+
+    uint32_t sp_mem_offset = 0x0100 + sp; // variable to hold memory offset location
 
     // Structure of the opcode matrix table
     // Each entrry contains:

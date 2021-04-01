@@ -4,7 +4,7 @@
 #include <cstdint>
 #include "Chip6502.h"
 
-const uint8_t MAX_MEM = 1024 * 64;
+const uint32_t MAX_MEM = 1024 * 64;
 
 class Bus 
 {
@@ -21,6 +21,7 @@ public:
     uint8_t read(uint16_t addr, bool bReadOnly = false);
 
 private:
+
     // Clean Ram
     void clear();
 };
