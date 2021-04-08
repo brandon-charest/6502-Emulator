@@ -41,14 +41,14 @@ bool Chip6502::complete()
     return cycles == 0;
 }
 
-uint8_t Chip6502::read(uint16_t addr) 
+uint8_t Chip6502::cpuRead(uint16_t addr) 
 {
-    return bus->read(addr, false);
+    return bus->cpuRead(addr, false);
 }
 
-void Chip6502::write(uint16_t addr, uint8_t data) 
+void Chip6502::cpuWrite(uint16_t addr, uint8_t data) 
 {
-    bus->write(addr, data);
+    bus->cpuWrite(addr, data);
 }
 
 // not clock cycle accurate
@@ -56,7 +56,7 @@ void Chip6502::clock()
 {
     if(cycles == 0)
     {
-        opcode = read(pc);
+        opcode = cpuRead(pc);
         SetFlag(U, true);
 
         pc++;
@@ -79,7 +79,7 @@ uint8_t Chip6502::fetch()
 {
     if(!(lookup[opcode].addrmode == &Chip6502::IMP))
     {
-        fetched = read(addr_abs);
+        fetched = cpuRead(addr_abs);
     }
     return fetched;
 }
@@ -94,8 +94,8 @@ void Chip6502::reset()
 
     // Address around 0x00 is saved for user programmable states
     addr_abs = 0xFFFC;
-    uint16_t lo = read(addr_abs + 0);
-    uint16_t hi = read(addr_abs + 1);
+    uint16_t lo = cpuRead(addr_abs + 0);
+    uint16_t hi = cpuRead(addr_abs + 1);
 
     pc = (hi << 8) | lo;
     addr_abs = 0x0000;
@@ -109,21 +109,21 @@ void Chip6502::irq()
 {
     if(GetFlag(I) == 0)
     {
-        write(sp_mem_offset, (pc >> 8) & 0x00FF);
+        cpuWrite(sp_mem_offset, (pc >> 8) & 0x00FF);
         sp--;
-        write(sp_mem_offset, pc & 0x00FF);
+        cpuWrite(sp_mem_offset, pc & 0x00FF);
         sp--;
 
         SetFlag(B, 0);
         SetFlag(U, 1);
         SetFlag(I, 1);
-        write(sp_mem_offset, status);
+        cpuWrite(sp_mem_offset, status);
         sp--;
 
 
         addr_abs = 0xFFFE;
-        uint16_t lo = read(addr_abs + 0);
-        uint16_t hi = read(addr_abs + 1);
+        uint16_t lo = cpuRead(addr_abs + 0);
+        uint16_t hi = cpuRead(addr_abs + 1);
         pc = (hi << 8) | lo;
 
         cycles = 7;
@@ -132,21 +132,21 @@ void Chip6502::irq()
 
 void Chip6502::nmi() 
 {
-    write(sp_mem_offset, (pc >> 8) & 0x00FF);
+    cpuWrite(sp_mem_offset, (pc >> 8) & 0x00FF);
     sp--;
-    write(sp_mem_offset, pc & 0x00FF);
+    cpuWrite(sp_mem_offset, pc & 0x00FF);
     sp--;
 
     SetFlag(B, 0);
     SetFlag(U, 1);
     SetFlag(I, 1);
-    write(sp_mem_offset, status);
+    cpuWrite(sp_mem_offset, status);
     sp--;
 
 
     addr_abs = 0xFFFA;
-    uint16_t lo = read(addr_abs + 0);
-    uint16_t hi = read(addr_abs + 1);
+    uint16_t lo = cpuRead(addr_abs + 0);
+    uint16_t hi = cpuRead(addr_abs + 1);
     pc = (hi << 8) | lo;
 
     cycles = 8;
@@ -199,7 +199,7 @@ std::map<uint16_t, std::string> Chip6502::disassemble(uint16_t nStart, uint16_t 
 		std::string sInst = "$" + hex(addr, 4) + ": ";
 
 		// Read instruction, and get its readable name
-		uint8_t opcode = bus->read(addr, true); addr++;
+		uint8_t opcode = bus->cpuRead(addr, true); addr++;
 		sInst += lookup[opcode].name + " ";
 
 		// Get oprands from desired locations, and form the
@@ -213,66 +213,66 @@ std::map<uint16_t, std::string> Chip6502::disassemble(uint16_t nStart, uint16_t 
 		}
 		else if (lookup[opcode].addrmode == &Chip6502::IMM)
 		{
-			val = bus->read(addr, true); addr++;
+			val = bus->cpuRead(addr, true); addr++;
 			sInst += "#$" + hex(val, 2) + " {IMM}";
 		}
 		else if (lookup[opcode].addrmode == &Chip6502::ZP0)
 		{
-			lo = bus->read(addr, true); addr++;
+			lo = bus->cpuRead(addr, true); addr++;
 			hi = 0x00;												
 			sInst += "$" + hex(lo, 2) + " {ZP0}";
 		}
 		else if (lookup[opcode].addrmode == &Chip6502::ZPX)
 		{
-			lo = bus->read(addr, true); addr++;
+			lo = bus->cpuRead(addr, true); addr++;
 			hi = 0x00;														
 			sInst += "$" + hex(lo, 2) + ", X {ZPX}";
 		}
 		else if (lookup[opcode].addrmode == &Chip6502::ZPY)
 		{
-			lo = bus->read(addr, true); addr++;
+			lo = bus->cpuRead(addr, true); addr++;
 			hi = 0x00;														
 			sInst += "$" + hex(lo, 2) + ", Y {ZPY}";
 		}
 		else if (lookup[opcode].addrmode == &Chip6502::IZX)
 		{
-			lo = bus->read(addr, true); addr++;
+			lo = bus->cpuRead(addr, true); addr++;
 			hi = 0x00;								
 			sInst += "($" + hex(lo, 2) + ", X) {IZX}";
 		}
 		else if (lookup[opcode].addrmode == &Chip6502::IZY)
 		{
-			lo = bus->read(addr, true); addr++;
+			lo = bus->cpuRead(addr, true); addr++;
 			hi = 0x00;								
 			sInst += "($" + hex(lo, 2) + "), Y {IZY}";
 		}
 		else if (lookup[opcode].addrmode == &Chip6502::ABS)
 		{
-			lo = bus->read(addr, true); addr++;
-			hi = bus->read(addr, true); addr++;
+			lo = bus->cpuRead(addr, true); addr++;
+			hi = bus->cpuRead(addr, true); addr++;
 			sInst += "$" + hex((uint16_t)(hi << 8) | lo, 4) + " {ABS}";
 		}
 		else if (lookup[opcode].addrmode == &Chip6502::ABX)
 		{
-			lo = bus->read(addr, true); addr++;
-			hi = bus->read(addr, true); addr++;
+			lo = bus->cpuRead(addr, true); addr++;
+			hi = bus->cpuRead(addr, true); addr++;
 			sInst += "$" + hex((uint16_t)(hi << 8) | lo, 4) + ", X {ABX}";
 		}
 		else if (lookup[opcode].addrmode == &Chip6502::ABY)
 		{
-			lo = bus->read(addr, true); addr++;
-			hi = bus->read(addr, true); addr++;
+			lo = bus->cpuRead(addr, true); addr++;
+			hi = bus->cpuRead(addr, true); addr++;
 			sInst += "$" + hex((uint16_t)(hi << 8) | lo, 4) + ", Y {ABY}";
 		}
 		else if (lookup[opcode].addrmode == &Chip6502::IND)
 		{
-			lo = bus->read(addr, true); addr++;
-			hi = bus->read(addr, true); addr++;
+			lo = bus->cpuRead(addr, true); addr++;
+			hi = bus->cpuRead(addr, true); addr++;
 			sInst += "($" + hex((uint16_t)(hi << 8) | lo, 4) + ") {IND}";
 		}
 		else if (lookup[opcode].addrmode == &Chip6502::REL)
 		{
-			val = bus->read(addr, true); addr++;
+			val = bus->cpuRead(addr, true); addr++;
 			sInst += "$" + hex(val, 2) + " [$" + hex(addr + val, 4) + "] {REL}";
 		}
 
@@ -303,7 +303,7 @@ uint8_t Chip6502::IMM()
 
 uint8_t Chip6502::ZP0() 
 {
-    addr_abs = read(pc);
+    addr_abs = cpuRead(pc);
     pc++;
     addr_abs &= 0x00FF;
     return 0;
@@ -311,7 +311,7 @@ uint8_t Chip6502::ZP0()
 
 uint8_t Chip6502::ZPX() 
 {
-    addr_abs = (read(pc) + x);
+    addr_abs = (cpuRead(pc) + x);
     pc++;
     addr_abs &= 0x00FF;
     return 0;
@@ -319,7 +319,7 @@ uint8_t Chip6502::ZPX()
 
 uint8_t Chip6502::ZPY() 
 {
-    addr_abs = (read(pc) + y);
+    addr_abs = (cpuRead(pc) + y);
     pc++;
     addr_abs &= 0x00FF;
     return 0;
@@ -327,7 +327,7 @@ uint8_t Chip6502::ZPY()
 
 uint8_t Chip6502::REL() 
 {
-    addr_rel = read(pc);
+    addr_rel = cpuRead(pc);
     pc++;
 
     if(addr_rel & 0x80)
@@ -339,9 +339,9 @@ uint8_t Chip6502::REL()
 
 uint8_t Chip6502::ABS() 
 {
-    uint16_t lo = read(pc);
+    uint16_t lo = cpuRead(pc);
     pc++;
-    uint16_t hi = read(pc);
+    uint16_t hi = cpuRead(pc);
     pc++;
 
     addr_abs = (hi << 8) | lo;
@@ -350,9 +350,9 @@ uint8_t Chip6502::ABS()
 
 uint8_t Chip6502::ABX() 
 {
-    uint16_t lo = read(pc);
+    uint16_t lo = cpuRead(pc);
     pc++;
-    uint16_t hi = read(pc);
+    uint16_t hi = cpuRead(pc);
     pc++;
 
     addr_abs = (hi << 8) | lo;
@@ -369,9 +369,9 @@ uint8_t Chip6502::ABX()
 
 uint8_t Chip6502::ABY() 
 {
-    uint16_t lo = read(pc);
+    uint16_t lo = cpuRead(pc);
     pc++;
-    uint16_t hi = read(pc);
+    uint16_t hi = cpuRead(pc);
     pc++;
 
     addr_abs = (hi << 8) | lo;
@@ -391,9 +391,9 @@ uint8_t Chip6502::ABY()
 // overflow into the high byte thus changing the 'page'.
 uint8_t Chip6502::IND() 
 {
-    uint16_t ptr_lo = read(pc);
+    uint16_t ptr_lo = cpuRead(pc);
     pc++;
-    uint16_t ptr_hi = read(pc);
+    uint16_t ptr_hi = cpuRead(pc);
     pc++;
 
     uint16_t ptr = (ptr_hi << 8) | ptr_lo;
@@ -402,11 +402,11 @@ uint8_t Chip6502::IND()
     // The IND(xxFF) will fail and instead grab address 00xx instead of xx+1
     if(ptr_lo == 0x00FF)
     {
-        addr_abs = (read(ptr & 0xFF00) << 8) | read(ptr + 0);
+        addr_abs = (cpuRead(ptr & 0xFF00) << 8) | cpuRead(ptr + 0);
     }
     else
     {
-        addr_abs = (read(ptr + 1) << 8) | read(ptr + 0);
+        addr_abs = (cpuRead(ptr + 1) << 8) | cpuRead(ptr + 0);
     }
 
 
@@ -415,11 +415,11 @@ uint8_t Chip6502::IND()
 
 uint8_t Chip6502::IZX() 
 {
-    uint16_t t = read(pc);
+    uint16_t t = cpuRead(pc);
     pc++;
 
-    uint16_t lo = read((uint16_t)(t + (uint16_t)x) & 0x00ff);
-    uint16_t hi = read((uint16_t)(t + (uint16_t)x + 1) & 0x00ff);
+    uint16_t lo = cpuRead((uint16_t)(t + (uint16_t)x) & 0x00ff);
+    uint16_t hi = cpuRead((uint16_t)(t + (uint16_t)x + 1) & 0x00ff);
 
     addr_abs = (hi << 8) | lo;
     return 0;
@@ -427,11 +427,11 @@ uint8_t Chip6502::IZX()
 
 uint8_t Chip6502::IZY() 
 {
-    uint16_t t = read(pc);
+    uint16_t t = cpuRead(pc);
     pc++;
 
-    uint16_t lo = read(t & 0x00FF);
-    uint16_t hi = read((t + 1) & 0x00FF);
+    uint16_t lo = cpuRead(t & 0x00FF);
+    uint16_t hi = cpuRead((t + 1) & 0x00FF);
 
     addr_abs = (hi << 8) | lo;
     addr_abs += y;
@@ -508,7 +508,7 @@ uint8_t Chip6502::ASL()
     }
     else
     {
-        write(addr_abs, temp);
+        cpuWrite(addr_abs, temp);
     }
     return 0;
 }
@@ -650,17 +650,17 @@ uint8_t Chip6502::BRK()
    pc++;
 
     SetFlag(I, 1);
-    write(sp_mem_offset, (pc >> 8) & 0x00FF);
+    cpuWrite(sp_mem_offset, (pc >> 8) & 0x00FF);
     sp--;
-    write(sp_mem_offset, pc & 0x00FF);
+    cpuWrite(sp_mem_offset, pc & 0x00FF);
     sp--;
 
     SetFlag(B, 1);
-    write(sp_mem_offset, status);
+    cpuWrite(sp_mem_offset, status);
     sp--;
     SetFlag(B, 0);
 
-    pc = (uint16_t)read(0xFFFE) | ((uint16_t)read(0xFFFF) << 8);
+    pc = (uint16_t)cpuRead(0xFFFE) | ((uint16_t)cpuRead(0xFFFF) << 8);
     return 0;
 }
 
@@ -786,7 +786,7 @@ uint8_t Chip6502::DEC()
 {
     fetch();
     uint8_t temp = fetched - 1;
-    write(addr_abs, temp & 0x00FF);
+    cpuWrite(addr_abs, temp & 0x00FF);
     SetFlag(Z, (temp & 0x00FF) == 0x0000);
 	SetFlag(N, temp & 0x0080);
 	return 0;
@@ -833,7 +833,7 @@ uint8_t Chip6502::INC()
 {
     fetch();
     uint8_t temp = fetched + 1;
-    write(addr_abs, temp & 0x00FF);
+    cpuWrite(addr_abs, temp & 0x00FF);
     SetFlag(Z, (temp & 0x00FF) == 0x0000);
 	SetFlag(N, temp & 0x0080);
 	return 0;
@@ -876,9 +876,9 @@ uint8_t Chip6502::JMP()
 uint8_t Chip6502::JSR() 
 {
     pc--;
-    write(sp_mem_offset, (pc >> 8) & 0x00FF);
+    cpuWrite(sp_mem_offset, (pc >> 8) & 0x00FF);
     sp--;
-    write(sp_mem_offset, pc & 0x00FF);
+    cpuWrite(sp_mem_offset, pc & 0x00FF);
     sp--;
     pc = addr_abs;
     return 0;
@@ -938,7 +938,7 @@ uint8_t Chip6502::LSR()
     }
     else
     {
-        write(addr_abs, temp & 0x00FF);
+        cpuWrite(addr_abs, temp & 0x00FF);
     }
     return 0;
 }
@@ -978,7 +978,7 @@ uint8_t Chip6502::ORA()
 // Flags Out: none
 uint8_t Chip6502::PHA() 
 {
-    write(sp_mem_offset, a);
+    cpuWrite(sp_mem_offset, a);
     sp--;
     return 0;
 }
@@ -988,7 +988,7 @@ uint8_t Chip6502::PHA()
 // Flags Out: B, U
 uint8_t Chip6502::PHP() 
 {
-    write(sp_mem_offset, status | B | U);
+    cpuWrite(sp_mem_offset, status | B | U);
     SetFlag(B, 0);
     SetFlag(U, 0);
     sp--;
@@ -1001,7 +1001,7 @@ uint8_t Chip6502::PHP()
 uint8_t Chip6502::PLA() 
 {
     sp++;
-    a = read(sp_mem_offset);
+    a = cpuRead(sp_mem_offset);
     SetFlag(Z, a == 0x00);
     SetFlag(N, a & 0x80);
     return 0;
@@ -1013,7 +1013,7 @@ uint8_t Chip6502::PLA()
 uint8_t Chip6502::PLP() 
 {
     sp++;
-    status = read(sp_mem_offset);
+    status = cpuRead(sp_mem_offset);
     SetFlag(U, 1);
     return 0;
 }
@@ -1036,7 +1036,7 @@ uint8_t Chip6502::ROL()
     }
 	else
     {
-		write(addr_abs, temp & 0x00FF);
+		cpuWrite(addr_abs, temp & 0x00FF);
     }
 	return 0;
 }
@@ -1059,7 +1059,7 @@ uint8_t Chip6502::ROR()
     }
 	else
     {
-		write(addr_abs, temp & 0x00FF);
+		cpuWrite(addr_abs, temp & 0x00FF);
     }
 	return 0;
 }
@@ -1071,12 +1071,12 @@ uint8_t Chip6502::RTI()
 {
     sp++;
     
-    status = read(0x100 + sp);
+    status = cpuRead(0x100 + sp);
     status &= ~B;
     status &= ~U;
 
     sp++;
-    uint16_t mem = (uint16_t)read(sp_mem_offset);
+    uint16_t mem = (uint16_t)cpuRead(sp_mem_offset);
     pc = mem;
     sp++;
     pc |= mem << 8;
@@ -1089,10 +1089,10 @@ uint8_t Chip6502::RTI()
 uint8_t Chip6502::RTS() 
 {
     sp++;
-	pc = (uint16_t)read(sp_mem_offset);
+	pc = (uint16_t)cpuRead(sp_mem_offset);
 
 	sp++;
-	pc |= (uint16_t)read(sp_mem_offset) << 8;
+	pc |= (uint16_t)cpuRead(sp_mem_offset) << 8;
 	
 	pc++;
 	return 0;
@@ -1157,7 +1157,7 @@ uint8_t Chip6502::SEI()
 // Flags Out: none
 uint8_t Chip6502::STA() 
 {
-    write(addr_abs, a);
+    cpuWrite(addr_abs, a);
     return 0;
 }
 
@@ -1166,7 +1166,7 @@ uint8_t Chip6502::STA()
 // Flags Out: none
 uint8_t Chip6502::STX() 
 {
-    write(addr_abs, x);
+    cpuWrite(addr_abs, x);
     return 0;
 }
 
@@ -1175,7 +1175,7 @@ uint8_t Chip6502::STX()
 // Flags Out: none
 uint8_t Chip6502::STY() 
 {
-    write(addr_abs, y);
+    cpuWrite(addr_abs, y);
     return 0;
 }
 
