@@ -1,5 +1,5 @@
 CXX=g++
-CXXFLAGS=-luser32 -lgdi32 -lopengl32 -lgdiplus -lShlwapi -ldwmapi -lstdc++fs -static -std=c++17 
+CXXFLAGS=-luser32 -lgdi32 -lopengl32 -lgdiplus -lShlwapi -ldwmapi -lstdc++fs -static -std=c++17 -Wall -Wno-unknown-pragmas
 OBJS=Driver.o Chip2C02.o Bus.o Chip2C02.o Cartridge.o
 SRC=*.cpp
 TARGET_EXEC=Chip6502
