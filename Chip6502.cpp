@@ -821,7 +821,7 @@ uint8_t Chip6502::EOR()
 {
     fetch();
     a = a ^ fetched;
-    SetFlag(Z, a = 0x00);
+    SetFlag(Z, a == 0x00);
     SetFlag(N, a & 0x80);
     return 1;
 }
@@ -968,7 +968,7 @@ uint8_t Chip6502::ORA()
 {
     fetch();
     a = a | fetched;
-    SetFlag(Z, a = 0x00);
+    SetFlag(Z, a == 0x00);
     SetFlag(N, a & 0x80);
     return 1;
 }
