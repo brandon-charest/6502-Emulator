@@ -2,12 +2,13 @@
 #include <cstdint>
 #include <memory>
 #include "Cartridge.h"
-
+// NES PPU Chip
 class Chip2C02
 {
 public:
     Chip2C02();
     ~Chip2C02();
+
 
     // Communication to Main Bus
     void cpuWrite(uint16_t addr, uint8_t data);
@@ -22,4 +23,8 @@ public: // Interface
     void clock();
 private:
     std::shared_ptr<Cartridge> cartridge;
+
+    // Name table info, NES can work with up to 2 Name tables
+    uint8_t tblName[2][1024];
+    uint8_t tblPalette[32];
 };
